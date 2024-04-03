@@ -12,54 +12,80 @@
 
 #include "philosophers.h"
 
-int	ft_atoi(const char *str)
+int	parse(int argc, char *argv[])
 {
-	int	signo;
-	int	nb;
-
-	signo = 1;
-	if (!str || str[0] == '\0')
-		return (0);
-	while (((*str >= 9) && (*str <= 13)) || (*str == 32))
-		str++;
-	if (*str == '-')
-	{
-		str++;
-		signo = -1;
-	}
-	else if (*str == '+')
-		str++;
-	nb = 0;
-	while ((*str >= '0') && (*str <= '9'))
-	{
-		nb = (nb * 10) + (int){*str - '0'};
-		str++;
-	}
-	return (nb * signo);
-}
-
-t_philo	*parse_args(int argc, char *argv[])
-{
-	t_philo	*filo;
-
 	if (argc < 5 || argc > 6)
-		return (NULL);
-	filo = malloc(sizeof(t_philo));
-	filo->num_philo = ft_atoi(argv[1]);
-	filo->ttd = ft_atoi(argv[2]);
-	filo->tte = ft_atoi(argv[3]);
-	filo->tts = ft_atoi(argv[4]);
+		return (0);
+	if (ft_atoi(argv[1]) <= 0 || ft_atoi(argv[2]) <= 0 || \
+	ft_atoi(argv[3]) <= 0 || ft_atoi(argv[4]) <= 0)
+		return (0);
 	if (argc == 6)
 	{
-		filo->must_eat = ft_atoi(argv[5]);
-		if (filo->must_eat <= 0)
-			return (free(filo), NULL);
+		if (ft_atoi(argv[5]) <= 0)
+			return (0);
 	}
+	return (1);
+}
+
+int	left_fork(int ind, int ind_max)
+{
+	if (ind == 0)
+		return (ind_max);
+	return (ind - 1);
+}
+
+int	right_fork(int ind, int ind_max)
+{
+	if (ind == ind_max)
+		return (ind_max);
+	return (ind);
+}
+
+t_times	*ini_times(char *argv[])
+{
+	t_times	*times;
+
+	times = malloc(sizeof(t_times));
+	if (!times)
+	{
+		printf("Error, malloc error\n");
+		return (NULL);
+	}
+	times->ttd = ft_atoi(argv[2]);
+	times->tte = ft_atoi(argv[3]);
+	times->tts = ft_atoi(argv[4]);
+	return (times);
+}
+
+t_index_s	*ini_index(char *argv[], int index, pthread_mutex_t **forks, pthread_mutex_t *escr, int *dead, pthread_mutex_t *check)
+{
+	t_index_s	*f_ind;
+
+	f_ind = malloc(sizeof(t_index_s));
+	if (!f_ind)
+	{
+		printf("Error, malloc error\n");
+		return (NULL);
+	}
+	f_ind->dead =  dead;
+	f_ind->filo = malloc(sizeof(t_philo));
+	if (!f_ind->filo)
+	{
+		printf("Error, malloc error\n");
+		return (free(f_ind), NULL);
+	}
+	f_ind->filo->escr = *escr;
+	f_ind->filo->check_dead = *check;
+	f_ind->filo->ind_filo = index;
+	f_ind->filo->num_philo = ft_atoi(argv[1]);
+	if (argv[5] != NULL)
+		f_ind->filo->must_eat = ft_atoi(argv[5]);
 	else
-		filo->must_eat = 0;
-	if (filo->num_philo <= 0 || filo->ttd <= 0 || \
-	filo->tte <= 0 || filo->tts <= 0)
-		return (free(filo), NULL);
-	filo->dead = 0;
-	return (filo);
+		f_ind->filo->must_eat = 0;
+	f_ind->filo->l_fork = &((*forks)[left_fork(index, ft_atoi(argv[1]) - 1)]);
+	f_ind->filo->r_fork = &((*forks)[right_fork(index, ft_atoi(argv[1]) - 1)]);
+	f_ind->filo->times = ini_times(argv);
+	if (!f_ind->filo->times)
+		return (free(f_ind->filo), free(f_ind), NULL);
+	return (f_ind);
 }

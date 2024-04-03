@@ -12,117 +12,121 @@
 
 #include "philosophers.h"
 
-long long get_time_in_ms(void)
-{
-	struct timeval	tv;
-
-	gettimeofday(&tv, NULL);
-	return ((long long)(tv.tv_sec) * 1000 + (long long)(tv.tv_usec) / 1000);
-}
-
-void	print_message(int i, char *msg, pthread_mutex_t escr)
-{
-	pthread_mutex_lock(&escr);
-	printf("%lld %d %s\n", get_time_in_ms(), i, msg);
-	pthread_mutex_unlock(&escr);
-}
-
-int	left_fork(int ind, int ind_max)
-{
-	if (ind == 0)
-		return (ind_max);
-	return (ind - 1);
-}
-
-int	right_fork(int ind, int ind_max)//ind_max es num_philo - 1
-{
-	if (ind == ind_max)
-		return (0);
-	return (ind + 1);
-}
-
 void	*hilos(t_index_s *ind)
 {
+	int				ref_time;
+
 	if (ind->filo->num_philo == 0)
 		return (NULL);
+	ref_time = 0;
 	while (1)
 	{
-		if (ind->filo->dead == 1)
+		pthread_mutex_lock(&ind->filo->check_dead);
+		if (*(ind->dead) == 1)
+		{
+			pthread_mutex_unlock(&ind->filo->check_dead);
 			return (NULL);
-		print_message(ind->value, "is thinking", ind->filo->escr);
-		break ;
+		}
+		pthread_mutex_unlock(&ind->filo->check_dead);
+		print_message(ind->filo->ind_filo, "is thinking", ind->filo->escr);
+		usleep(ind->filo->times->tts * 1000);
+		if (ref_time != 0)
+		{
+			ref_time = get_time_in_ms() - ref_time;
+			if (ref_time >= ind->filo->times->ttd)
+			{
+				*(ind->dead) = 1;
+				break ;
+			}
+		}
+		pthread_mutex_lock(ind->filo->l_fork);
+		print_message(ind->filo->ind_filo, "has taken a fork", ind->filo->escr);
+		pthread_mutex_lock(ind->filo->r_fork);
+		ref_time = get_time_in_ms();
+		print_message(ind->filo->ind_filo, "has taken a fork", ind->filo->escr);
+		pthread_mutex_lock(&ind->filo->check_dead);
+		if (*(ind->dead) > 0)
+		{
+			pthread_mutex_unlock(ind->filo->l_fork);
+			pthread_mutex_unlock(ind->filo->r_fork);
+			pthread_mutex_unlock(&ind->filo->check_dead);
+			return (NULL);
+		}
+		pthread_mutex_unlock(&ind->filo->check_dead);
+		print_message(ind->filo->ind_filo, "is eating", ind->filo->escr);
+		usleep(ind->filo->times->tte * 1000);
+		pthread_mutex_unlock(ind->filo->l_fork);
+		pthread_mutex_unlock(ind->filo->r_fork);
+		print_message(ind->filo->ind_filo, "is sleeping", ind->filo->escr);
 	}
+	print_message(ind->filo->ind_filo, "died", ind->filo->escr);
 	return (NULL);
-}
-
-t_index_s	*ini_index(t_philo **filos, int i)
-{
-	t_index_s	*ind;
-
-	ind = malloc(sizeof(t_index_s));
-	if (!ind)
-	{
-		printf("Error, malloc error");
-		exit(1);
-	}
-	ind->value = i;
-	ind->filo = *filos;
-	return (ind);
 }
 
 int	main(int argc, char *argv[])
 {
-	t_philo			*filo;
-	t_index_s		*ind;
+	pthread_mutex_t	*forks;
+	pthread_mutex_t	escr;
+	pthread_mutex_t	check_dead;
+	pthread_t		*filosofos;
+	t_index_s		*f_ind;
+	int				some_dead;
 	int				i;
 
-	filo = parse_args(argc, argv);
-	if (filo == NULL)
+	if (parse(argc, argv) == 0)
 	{
-		printf("Remember to set the right arguments\n");
+		printf("Error, remember to set the rigth arguments\n");
 		return (1);
 	}
-	filo->forks = malloc(filo->num_philo);
-	if (!filo->forks)
+	filosofos = malloc(ft_atoi(argv[1]));
+	if (!filosofos)
 	{
-		printf("Error, malloc error");
+		printf("Error, malloc error\n");
 		return (1);
 	}
-	i = 0;
-	while (i < filo->num_philo)
+	forks = malloc(ft_atoi(argv[1]) * sizeof(pthread_mutex_t));
+	if (!forks)
 	{
-		pthread_mutex_init(&(filo->forks[i]), NULL);
-		i++;
-	}
-	pthread_mutex_init(&(filo->escr), NULL);
-	filo->filosofos = malloc(filo->num_philo);
-	if (!filo->filosofos)
-	{
-		printf("Error, malloc error");
+		printf("Error, malloc error\n");
 		return (1);
 	}
 	i = 0;
-	while (i < filo->num_philo)
+	while (i < ft_atoi(argv[1]))
 	{
-		ind = ini_index(&filo, i);
-		pthread_create(&filo->filosofos[i], NULL, (void *)hilos, (void *)ind);
-		free(ind);
+		pthread_mutex_init(&(forks[i]), NULL);
+		i++;
+	}
+	pthread_mutex_init(&escr, NULL);
+	pthread_mutex_init(&check_dead, NULL);
+	i = 0;
+	some_dead = 0;
+	f_ind = malloc(ft_atoi(argv[1]) * sizeof(t_index_s *));
+	if (!f_ind)
+	{
+		printf("Error, malloc error\n");
+		return (1);
+	}
+	while (i < ft_atoi(argv[1]))
+	{
+		f_ind[i] = *ini_index(argv, i, &forks, &escr, &some_dead, &check_dead);
+		pthread_create(&(filosofos[i]), NULL, (void *)hilos, (void *)(&f_ind[i]));
 		i++;
 	}
 	i = 0;
-	while (i < filo->num_philo)
+	while (i < ft_atoi(argv[1]))
 	{
-		pthread_join(filo->filosofos[i], NULL);
+		pthread_join(filosofos[i], NULL);
 		i++;
 	}
 	i = 0;
-	while (i < filo->num_philo)
+	while (i < ft_atoi(argv[1]))
 	{
-		pthread_mutex_destroy(&(filo->forks[i]));
+		pthread_mutex_destroy(&(forks[i]));
 		i++;
 	}
-	pthread_mutex_destroy(&(filo->escr));
-	free(filo->filosofos);
-	free(filo);
+	pthread_mutex_destroy(&escr);
+	free(filosofos);
+	free(forks);
+	free(f_ind);
 	return (0);
 }
