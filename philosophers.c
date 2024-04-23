@@ -5,128 +5,203 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: carlos-m <carlos-m@student.42madrid.com>   +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/03/13 15:29:54 by carlos-m          #+#    #+#             */
-/*   Updated: 2024/03/13 15:29:55 by carlos-m         ###   ########.fr       */
+/*   Created: 2024/04/07 12:10:54 by carlos-m          #+#    #+#             */
+/*   Updated: 2024/04/07 12:10:56 by carlos-m         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philosophers.h"
 
-void	*hilos(t_index_s *ind)
+void	*principal(t_philo	*filo)
 {
-	int				ref_time;
-
-	if (ind->filo->num_philo == 0)
-		return (NULL);
-	ref_time = 0;
 	while (1)
 	{
-		pthread_mutex_lock(&ind->filo->check_dead);
-		if (*(ind->dead) == 1)
+		pthread_mutex_lock(&filo->data->m_dead);
+		if (filo->data->one_dead == 1)
 		{
-			pthread_mutex_unlock(&ind->filo->check_dead);
+			pthread_mutex_unlock(&filo->data->m_dead);
 			return (NULL);
 		}
-		pthread_mutex_unlock(&ind->filo->check_dead);
-		print_message(ind->filo->ind_filo, "is thinking", ind->filo->escr);
-		usleep(ind->filo->times->tts * 1000);
-		if (ref_time != 0)
+		pthread_mutex_unlock(&filo->data->m_dead);
+		print_message(filo->filo_id, "is thinking", &filo->data->m_write);
+		usleep(filo->data->tts * 1000);
+		pthread_mutex_lock(&filo->data->m_dead);
+		if (filo->data->one_dead == 1)
 		{
-			ref_time = get_time_in_ms() - ref_time;
-			if (ref_time >= ind->filo->times->ttd)
+			pthread_mutex_unlock(&filo->data->m_dead);
+			return (NULL);
+		}
+		pthread_mutex_unlock(&filo->data->m_dead);
+		if (filo->last_eat != 0)
+		{
+			if (get_time_in_ms() - filo->last_eat > filo->data->ttd)
 			{
-				*(ind->dead) = 1;
-				break ;
+				pthread_mutex_lock(&filo->data->m_dead);
+				filo->data->one_dead = 1;
+				print_message(filo->filo_id, "died", &filo->data->m_write);
+				pthread_mutex_unlock(&filo->data->m_dead);
+				return (NULL);
 			}
 		}
-		pthread_mutex_lock(ind->filo->l_fork);
-		print_message(ind->filo->ind_filo, "has taken a fork", ind->filo->escr);
-		pthread_mutex_lock(ind->filo->r_fork);
-		ref_time = get_time_in_ms();
-		print_message(ind->filo->ind_filo, "has taken a fork", ind->filo->escr);
-		pthread_mutex_lock(&ind->filo->check_dead);
-		if (*(ind->dead) > 0)
+		if (filo->filo_id == 0 || filo->filo_id % 2 == 0)
 		{
-			pthread_mutex_unlock(ind->filo->l_fork);
-			pthread_mutex_unlock(ind->filo->r_fork);
-			pthread_mutex_unlock(&ind->filo->check_dead);
+			pthread_mutex_lock(filo->r_fork);
+			pthread_mutex_lock(&filo->data->m_dead);
+			if (filo->data->one_dead == 1)
+			{
+				pthread_mutex_unlock(filo->r_fork);
+				pthread_mutex_unlock(&filo->data->m_dead);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&filo->data->m_dead);
+			print_message(filo->filo_id, "has taken a fork", &filo->data->m_write);
+			pthread_mutex_lock(filo->l_fork);
+			pthread_mutex_lock(&filo->data->m_dead);
+			if (filo->data->one_dead == 1)
+			{
+				pthread_mutex_unlock(filo->r_fork);
+				pthread_mutex_unlock(filo->l_fork);
+				pthread_mutex_unlock(&filo->data->m_dead);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&filo->data->m_dead);
+			print_message(filo->filo_id, "has taken a fork", &filo->data->m_write);
+		}
+		else
+		{
+			pthread_mutex_lock(filo->l_fork);
+			pthread_mutex_lock(&filo->data->m_dead);
+			if (filo->data->one_dead == 1)
+			{
+				pthread_mutex_unlock(filo->l_fork);
+				pthread_mutex_unlock(&filo->data->m_dead);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&filo->data->m_dead);
+			print_message(filo->filo_id, "has taken a fork", &filo->data->m_write);
+			pthread_mutex_lock(filo->r_fork);
+			pthread_mutex_lock(&filo->data->m_dead);
+			if (filo->data->one_dead == 1)
+			{
+				pthread_mutex_unlock(filo->l_fork);
+				pthread_mutex_unlock(filo->r_fork);
+				pthread_mutex_unlock(&filo->data->m_dead);
+				return (NULL);
+			}
+			pthread_mutex_unlock(&filo->data->m_dead);
+			print_message(filo->filo_id, "has taken a fork", &filo->data->m_write);
+		}
+		pthread_mutex_lock(&filo->data->m_dead);
+		if (filo->data->one_dead == 1)
+		{
+			pthread_mutex_unlock(filo->l_fork);
+			pthread_mutex_unlock(filo->r_fork);
+			pthread_mutex_unlock(&filo->data->m_dead);
 			return (NULL);
 		}
-		pthread_mutex_unlock(&ind->filo->check_dead);
-		print_message(ind->filo->ind_filo, "is eating", ind->filo->escr);
-		usleep(ind->filo->times->tte * 1000);
-		pthread_mutex_unlock(ind->filo->l_fork);
-		pthread_mutex_unlock(ind->filo->r_fork);
-		print_message(ind->filo->ind_filo, "is sleeping", ind->filo->escr);
+		pthread_mutex_unlock(&filo->data->m_dead);
+		print_message(filo->filo_id, "is eating", &filo->data->m_write);
+		usleep(filo->data->tte * 1000);
+		filo->last_eat = get_time_in_ms();
+		pthread_mutex_unlock(filo->r_fork);
+		pthread_mutex_unlock(filo->l_fork);
+		pthread_mutex_lock(&filo->data->m_dead);
+		if (filo->data->one_dead == 1)
+		{
+			pthread_mutex_unlock(&filo->data->m_dead);
+			return (NULL);
+		}
+		pthread_mutex_unlock(&filo->data->m_dead);
+		print_message(filo->filo_id, "is sleeping", &filo->data->m_write);
+		usleep(filo->data->tts * 1000);
 	}
-	print_message(ind->filo->ind_filo, "died", ind->filo->escr);
 	return (NULL);
 }
 
+void	*hilo_aux(t_general *general)
+{
+	int	i;
+
+	while (1)
+	{
+		usleep(100);
+		pthread_mutex_lock(&general->data->m_dead);
+		if (general->data->one_dead == 1)
+		{
+			i = 0;
+			while (i < general->data->filo_quant)
+			{
+				pthread_detach(general->hilos[i]);
+				i++;
+			}
+			return (NULL);
+		}
+		pthread_mutex_unlock(&general->data->m_dead);
+	}
+}	
+
 int	main(int argc, char *argv[])
 {
-	pthread_mutex_t	*forks;
-	pthread_mutex_t	escr;
-	pthread_mutex_t	check_dead;
-	pthread_t		*filosofos;
-	t_index_s		*f_ind;
-	int				some_dead;
-	int				i;
+	t_general	*general;
+	int			i;
 
-	if (parse(argc, argv) == 0)
+	if (argc < 5 || argc > 6)
 	{
-		printf("Error, remember to set the rigth arguments\n");
+		printf("Error, invalid arguments\n");
 		return (1);
 	}
-	filosofos = malloc(ft_atoi(argv[1]));
-	if (!filosofos)
+	general = malloc(sizeof(t_general));
+	general->data = parse_args(argc, argv);
+	if (!general->data)
+	{
+		free(general);
+		return (-1);
+	}
+	general->hilos = malloc(general->data->filo_quant);
+	if (!general->hilos)
 	{
 		printf("Error, malloc error\n");
-		return (1);
+		return (-1);
 	}
-	forks = malloc(ft_atoi(argv[1]) * sizeof(pthread_mutex_t));
-	if (!forks)
+	general->forks = malloc(general->data->filo_quant * sizeof(pthread_mutex_t));
+	if (!general->forks)
 	{
 		printf("Error, malloc error\n");
-		return (1);
+		return (-1);
 	}
 	i = 0;
-	while (i < ft_atoi(argv[1]))
+	while (i < general->data->filo_quant)
 	{
-		pthread_mutex_init(&(forks[i]), NULL);
+		pthread_mutex_init(&(general->forks[i]), NULL);
 		i++;
 	}
-	pthread_mutex_init(&escr, NULL);
-	pthread_mutex_init(&check_dead, NULL);
-	i = 0;
-	some_dead = 0;
-	f_ind = malloc(ft_atoi(argv[1]) * sizeof(t_index_s *));
-	if (!f_ind)
+	general->philosophers = malloc(general->data->filo_quant * sizeof(t_philo *));
+	if (!general->philosophers)
 	{
 		printf("Error, malloc error\n");
-		return (1);
-	}
-	while (i < ft_atoi(argv[1]))
-	{
-		f_ind[i] = *ini_index(argv, i, &forks, &escr, &some_dead, &check_dead);
-		pthread_create(&(filosofos[i]), NULL, (void *)hilos, (void *)(&f_ind[i]));
-		i++;
+		return (-1);
 	}
 	i = 0;
-	while (i < ft_atoi(argv[1]))
+	while (i < general->data->filo_quant)
 	{
-		pthread_join(filosofos[i], NULL);
+		general->philosophers[i] = *ini_filo(general, i);
+		pthread_create(&(general->hilos[i]), NULL, (void *)principal, (void *)(&(general->philosophers[i])));
 		i++;
 	}
+	pthread_create(&(general->count), NULL, (void *)hilo_aux, (void *)(&general));
+	pthread_join(general->count, NULL);
 	i = 0;
-	while (i < ft_atoi(argv[1]))
+	while (i < general->data->filo_quant)
 	{
-		pthread_mutex_destroy(&(forks[i]));
+		pthread_join(general->hilos[i], NULL);
 		i++;
 	}
-	pthread_mutex_destroy(&escr);
-	free(filosofos);
-	free(forks);
-	free(f_ind);
+	//i = 0;
+	//while (i < general->data->filo_quant)
+	//{
+	//	pthread_mutex_destroy(&(general->forks[i]));
+	//	i++;
+	//}
+	//FALTAN MUTEX POR DESTRUIR(todos menos forks)
 	return (0);
 }
