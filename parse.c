@@ -3,111 +3,114 @@
 /*                                                        :::      ::::::::   */
 /*   parse.c                                            :+:      :+:    :+:   */
 /*                                                    +:+ +:+         +:+     */
-/*   By: carlos-m <carlos-m@student.42madrid.com>   +#+  +:+       +#+        */
+/*   By: carlos-m <marvin@42.fr>                    +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/04/16 12:15:44 by carlos-m          #+#    #+#             */
-/*   Updated: 2024/04/16 12:15:45 by carlos-m         ###   ########.fr       */
+/*   Created: 2024/05/03 15:28:38 by carlos-m          #+#    #+#             */
+/*   Updated: 2024/05/03 15:28:40 by carlos-m         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "philosophers.h"
 
-int	ft_atoi(const char *str)
+static int	new_atoi(char *str)
 {
-	int	signo;
-	int	nb;
+	int	final;
 
-	signo = 1;
 	if (!str || str[0] == '\0')
 		return (0);
-	while (((*str >= 9) && (*str <= 13)) || (*str == 32))
-		str++;
-	if (*str == '-')
+	final = 0;
+	while (*str && *str >= '0' && *str <= '9')
 	{
-		str++;
-		signo = -1;
-	}
-	else if (*str == '+')
-		str++;
-	nb = 0;
-	while ((*str >= '0') && (*str <= '9'))
-	{
-		nb = (nb * 10) + (int){*str - '0'};
+		final += *str - '0';
+		final *= 10;
 		str++;
 	}
-	return (nb * signo);
+	final /= 10;
+	return (final);
 }
 
-int	do_atoi(int argc, char *argv[], t_datos *data)
+int	parse_args(char *argv[])
 {
-	data->filo_quant = ft_atoi(argv[1]);
-	data->ttd = ft_atoi(argv[2]);
-	data->tte = ft_atoi(argv[3]);
-	data->tts = ft_atoi(argv[4]);
-	if (data->filo_quant <= 0 || data->ttd <= 0 || \
-	data->tte <= 0 || data->tts <= 0)
+	int	i;
+	int	j;
+
+	i = 1;
+	while (argv[i])
 	{
-		printf("Error, invalid arguments\n");
-		return (-1);
-	}
-	if (argc == 6)
-	{
-		data->min_time_eat = ft_atoi(argv[5]);
-		if (data->min_time_eat <= 0)
+		j = 0;
+		while (argv[i][j])
 		{
-			printf("Error, invalid arguments\n");
-			return (-1);
+			if (argv[i][j] < '0' || argv[i][j] > '9')
+				return (1);
+			j++;
 		}
+		if (new_atoi(argv[i]) == 0)
+			return (1);
+		i++;
 	}
-	else
-		data->min_time_eat = -1;
-	return (1);
+	return (0);
 }
 
-t_datos	*parse_args(int argc, char *argv[])
+t_datos	*ini_datos(char *argv[], int argc)
 {
 	t_datos	*data;
 
 	data = malloc(sizeof(t_datos));
-	if (!data)
-	{
-		printf("Error, malloc error\n");
-		return (NULL);
-	}
-	if (do_atoi(argc, argv, data) == -1)
-		return (free(data), NULL);
-	data->can_start = 0;
-	data->one_dead = -1;
-	pthread_mutex_init(&data->m_can_start, NULL);
-	pthread_mutex_init(&data->m_dead, NULL);
-	pthread_mutex_init(&data->m_write, NULL);
+	data->num_philo = new_atoi(argv[1]);
+	data->ttd = new_atoi(argv[2]);
+	data->tte = new_atoi(argv[3]);
+	data->tts = new_atoi(argv[4]);
+	if (argc == 6)
+		data->times_to_eat = new_atoi(argv[5]);
+	else
+		data->times_to_eat = -1;
+	pthread_mutex_init((pthread_mutex_t *)(&data->m_write), NULL);
+	pthread_mutex_init((pthread_mutex_t *)(&data->m_last_eat_time), NULL);
+	data->end = 0;
 	return (data);
 }
 
-int	left_fork(int ind, int ind_max)
+void	ini_each_philo(t_general *general)
 {
-	if (ind == 0)
-		return (ind_max);
-	return (ind - 1);
+	int	i;
+
+	i = 0;
+	while (i < general->data->num_philo)
+	{
+		general->philos[i].data = general->data;
+		general->philos[i].id = i + 1;
+		general->philos[i].l_fork = &general->forks[i];
+		if (i == general->data->num_philo - 1)
+			general->philos[i].r_fork = &(general->forks[0]);
+		else
+			general->philos[i].r_fork = &(general->forks[i + 1]);
+		pthread_mutex_init((pthread_mutex_t *) \
+		(&general->philos[i].m_times_eat), NULL);
+		i++;
+	}
 }
 
-t_philo	*ini_filo(t_general *general, int ind)
+void	ini_general(t_general *all, char *argv[], int argc)
 {
-	t_philo	*filo;
+	int	i;
 
-	filo = malloc(sizeof(t_philo));
-	if (!filo)
+	all->data = ini_datos(argv, argc);
+	all->hilos = malloc (sizeof(pthread_t) * (all->data->num_philo));
+	if (!all->hilos)
+		return ;
+	all->forks = malloc (sizeof(pthread_mutex_t) * \
+	(all->data->num_philo));
+	if (!all->forks)
+		return ;
+	all->philos = malloc (sizeof(t_philo) * (all->data->num_philo));
+	if (!all->forks)
+		return ;
+	i = 0;
+	while (i < all->data->num_philo)
 	{
-		printf("Error, malloc error\n");
-		return (NULL);
+		pthread_mutex_init(&(all->forks[i]), NULL);
+		i++;
 	}
-	filo->filo_id = ind;
-	filo->times_eaten = 0;
-	filo->last_eat = 0;
-	filo->l_fork = &(general->forks[left_fork(ind, \
-	general->data->filo_quant - 1)]);
-	filo->r_fork = &(general->forks[ind]);
-	pthread_mutex_init(&filo->m_times_eaten, NULL);
-	filo->data = general->data;
-	return (filo);
+	pthread_mutex_init((pthread_mutex_t *)(&all->data->m_can_start), NULL);
+	ini_each_philo(all);
 }

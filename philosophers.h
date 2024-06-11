@@ -1,56 +1,47 @@
-/* ************************************************************************** */
-/*                                                                            */
-/*                                                        :::      ::::::::   */
-/*   philosophers.h                                     :+:      :+:    :+:   */
-/*                                                    +:+ +:+         +:+     */
-/*   By: carlos-m <carlos-m@student.42madrid.com>   +#+  +:+       +#+        */
-/*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2024/03/13 15:32:20 by carlos-m          #+#    #+#             */
-/*   Updated: 2024/03/13 15:32:21 by carlos-m         ###   ########.fr       */
-/*                                                                            */
-/* ************************************************************************** */
-
-#ifndef PHILOSOPHERS_H
-# define PHILOSOPHERS_H
-
-# include <unistd.h>
 # include <stdlib.h>
 # include <stdio.h>
+# include <unistd.h>
 # include <sys/time.h>
 # include <pthread.h>
 
-typedef struct s_times
+typedef struct s_datos
 {
-	int	ttd;
-	int	tte;
-	int	tts;
-}	t_times;
+	pthread_mutex_t	m_last_eat_time;
+	pthread_mutex_t	m_can_start;
+	pthread_mutex_t	m_write;
+	size_t			ini_time;
+	int				times_to_eat;
+	int				num_philo;
+	int				can_start;
+	size_t			ttd;
+	int				tte;
+	size_t				tts;
+	int				end;
+}	t_datos;
 
 typedef struct s_philo
 {
+	pthread_mutex_t	m_times_eat;
 	pthread_mutex_t	*l_fork;
 	pthread_mutex_t	*r_fork;
-	pthread_mutex_t	escr;
-	pthread_mutex_t check_dead;
-	t_times			*times;
-	int				num_philo;
-	int				must_eat;
-	int				ind_filo;
+	int				id;
+	size_t			last_eat;
+	int				times_eaten;
+	t_datos			*data;
 }	t_philo;
 
-typedef struct s_index_s
+typedef struct s_general
 {
-	t_philo			*filo;
-	int				*dead;
-}	t_index_s;
+	t_philo			*philos;
+	pthread_mutex_t	*forks;
+	pthread_t		*hilos;
+	t_datos			*data;
+	pthread_t		hilo_aux;
+}	t_general;
 
-int			parse(int argc, char *argv[]);
-int			ft_atoi(const char *str);
-void		print_message(int i, char *msg, pthread_mutex_t escr);
-long long	get_time_in_ms(void);
-int			left_fork(int ind, int ind_max);
-int			right_fork(int ind, int ind_max);
-t_times		*ini_times(char *argv[]);
-t_index_s	*ini_index(char *argv[], int index, pthread_mutex_t **forks, pthread_mutex_t *escr, int *dead, pthread_mutex_t *check);
+void	ini_general(t_general *all, char *argv[], int argc);
+size_t	get_time_in_ms(void);
+void	usleep_functional(size_t time);
+int		parse_args(char *argv[]);
 
 #endif

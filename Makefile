@@ -12,7 +12,7 @@
 
 NAME = philosophers
 
-SRC = philosophers.c parse.c message.c aux_functions.c
+SRC = aux_fnctns.c philosophers.c parse.c
 
 OBJ = $(SRC:.c=.o)
 
