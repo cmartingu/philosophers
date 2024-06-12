@@ -30,3 +30,49 @@ void	usleep_functional(size_t time)
 	while (get_time_in_ms() - begin < time)
 		usleep(250);
 }
+
+void	ft_free(t_general *general)
+{
+	int	i;
+
+	i = 0;
+	while (i < general->data->num_philo)
+	{
+		pthread_mutex_destroy(&(general->forks[i]));
+		i++;
+	}
+	pthread_mutex_destroy(&(general->data->m_write));
+	free(general->hilos);
+	free(general->forks);
+	free(general->data);
+}
+
+void	print_sleep(t_philo *philo)
+{
+	size_t	time;
+
+	pthread_mutex_lock(&philo->data->m_write);
+	time = get_time_in_ms();
+	if (finish(philo))
+	{
+		pthread_mutex_unlock(&philo->data->m_write);
+		return ;
+	}
+	printf("%lu %d is sleeping\n", time, philo->id);
+	pthread_mutex_unlock(&philo->data->m_write);
+}
+
+void	print_eat(t_philo *philo)
+{
+	size_t	time;
+
+	pthread_mutex_lock(&philo->data->m_write);
+	time = get_time_in_ms();
+	if (finish(philo))
+	{
+		pthread_mutex_unlock(&philo->data->m_write);
+		return ;
+	}
+	printf("%lu %d is eating\n", time, philo->id);
+	pthread_mutex_unlock(&philo->data->m_write);
+}

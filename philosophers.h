@@ -1,3 +1,18 @@
+/* ************************************************************************** */
+/*                                                                            */
+/*                                                        :::      ::::::::   */
+/*   philosophers.h                                     :+:      :+:    :+:   */
+/*                                                    +:+ +:+         +:+     */
+/*   By: carlos-m <marvin@42.fr>                    +#+  +:+       +#+        */
+/*                                                +#+#+#+#+#+   +#+           */
+/*   Created: 2024/05/03 14:40:40 by carlos-m          #+#    #+#             */
+/*   Updated: 2024/05/03 14:40:41 by carlos-m         ###   ########.fr       */
+/*                                                                            */
+/* ************************************************************************** */
+
+#ifndef PHILOSOPHERS_H
+# define PHILOSOPHERS_H
+
 # include <stdlib.h>
 # include <stdio.h>
 # include <unistd.h>
@@ -15,7 +30,7 @@ typedef struct s_datos
 	int				can_start;
 	size_t			ttd;
 	int				tte;
-	size_t				tts;
+	size_t			tts;
 	int				end;
 }	t_datos;
 
@@ -43,5 +58,19 @@ void	ini_general(t_general *all, char *argv[], int argc);
 size_t	get_time_in_ms(void);
 void	usleep_functional(size_t time);
 int		parse_args(char *argv[]);
+
+int		finish(t_philo *philo);
+int		finish_eating(t_general *general);
+int		control_finish(t_general *general);
+void	*hilo_control(t_general *general);
+void	one_philo(t_general *general);
+void	start_program(t_general *general);
+void	ft_free(t_general *general);
+void	*principal(t_philo *philo);
+void	eat_loop(t_philo *philo);
+void	print_think(t_philo *philo);
+void	print_sleep(t_philo *philo);
+void	print_eat(t_philo *philo);
+void	print_fork(t_philo *philo);
 
 #endif
